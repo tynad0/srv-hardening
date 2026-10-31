@@ -1,0 +1,70 @@
+---
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: Allow SSH only over Tailscale
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: tailscale0
+    port: "{{ ufw_ssh_port | string }}"
+    proto: tcp
+  when: ufw_allow_ssh_on_tailscale | bool
+
+- name: Remove SSH rules outside Tailscale
+  community.general.ufw:
+    rule: allow
+    port: "{{ ufw_ssh_port | string }}"
+    proto: tcp
+    src: "{{ item }}"
+    delete: true
+  loop: "{{ ufw_ssh_removed_sources }}"
+
+- name: Remove OpenSSH app profile rule
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+    delete: true
+
+- name: Allow Tailscale direct connections
+  community.general.ufw:
+    rule: allow
+    port: "41641"
+    proto: udp
+  when: ufw_allow_tailscale_udp | bool
+
+- name: Allow public web ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item | string }}"
+    proto: tcp
+  loop: "{{ ufw_public_tcp_ports }}"
+
+- name: Set default outgoing policy
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: Set default incoming policy
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Keep log_martians enabled when ufw reloads
+  ansible.builtin.lineinfile:
+    path: /etc/ufw/sysctl.conf
+    regexp: '^#?\s*net/ipv4/conf/{{ item }}/log_martians='
+    line: "net/ipv4/conf/{{ item }}/log_martians=1"
+  loop:
+    - all
+    - default
+
+- name: Set ufw logging
+  community.general.ufw:
+    logging: "low"
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

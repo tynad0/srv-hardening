@@ -1,0 +1,49 @@
+---
+#  ansible-playbook lynis.yml -e lynis_label=before or after  
+- name: Lynis audit
+  hosts: servers
+  become: true
+  vars:
+    lynis_label: before
+  tasks:
+    - name: Install lynis
+      ansible.builtin.apt:
+        name: lynis
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Run lynis audit
+      ansible.builtin.command:
+        argv:
+          - lynis
+          - audit
+          - system
+          - --quick
+          - --no-colors
+          - --report-file
+          - "/var/log/lynis-{{ lynis_label }}.dat"
+          - --logfile
+          - "/var/log/lynis-{{ lynis_label }}.log"
+      changed_when: false
+
+    - name: Read hardening index
+      ansible.builtin.command: grep -E '^hardening_index=' /var/log/lynis-{{ lynis_label }}.dat
+      register: lynis_index
+      changed_when: false
+
+    - name: Show hardening index
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} [{{ lynis_label }}] {{ lynis_index.stdout }}"
+
+    - name: Fetch lynis report
+      ansible.builtin.fetch:
+        src: "/var/log/lynis-{{ lynis_label }}.dat"
+        dest: "reports/{{ inventory_hostname }}/lynis-{{ lynis_label }}.dat"
+        flat: true
+
+    - name: Fetch lynis log
+      ansible.builtin.fetch:
+        src: "/var/log/lynis-{{ lynis_label }}.log"
+        dest: "reports/{{ inventory_hostname }}/lynis-{{ lynis_label }}.log"
+        flat: true

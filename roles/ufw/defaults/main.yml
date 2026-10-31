@@ -1,0 +1,15 @@
+---
+ufw_ssh_port: "{{ ssh_port | default(22) }}"
+
+ufw_allow_ssh_on_tailscale: true
+
+ufw_ssh_removed_sources:
+  - any
+  - "{{ lan_subnet | default('192.168.0.0/24') }}"
+
+# for DIRECT nodes only, not server
+ufw_allow_tailscale_udp: true
+
+ufw_public_tcp_ports:
+  - 80
+  - 443

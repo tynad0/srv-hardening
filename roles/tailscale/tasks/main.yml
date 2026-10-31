@@ -1,0 +1,58 @@
+---
+- name: Download Tailscale apt key
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/ubuntu/{{ tailscale_apt_codename }}.noarmor.gpg"
+    dest: "{{ tailscale_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Remove legacy one-line Tailscale repo
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/tailscale.list
+    state: absent
+
+- name: Add Tailscale apt repository
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: deb
+    uris: https://pkgs.tailscale.com/stable/ubuntu
+    suites: "{{ tailscale_apt_codename }}"
+    components: main
+    signed_by: "{{ tailscale_keyring }}"
+  register: tailscale_repo
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: "{{ tailscale_repo is changed }}"
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Ensure tailscaled is running
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    state: started
+    enabled: true
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Get Tailscale status
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Determine Tailscale backend state
+  ansible.builtin.set_fact:
+    tailscale_backend_state: >-
+      {{ (tailscale_status.stdout | from_json).BackendState
+         if (tailscale_status.rc == 0 and tailscale_status.stdout | length > 0)
+         else 'Unknown' }}
+
+- name: Bring Tailscale up
+  ansible.builtin.command:
+    argv: "{{ ['tailscale', 'up', '--authkey=' ~ tailscale_authkey, '--hostname=' ~ tailscale_hostname] + tailscale_extra_args }}"
+  when: tailscale_backend_state != 'Running'
+  changed_when: true
+  no_log: true

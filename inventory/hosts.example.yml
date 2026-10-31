@@ -1,0 +1,14 @@
+---
+all:
+  vars:
+    ansible_user: ABCD
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    servers:
+      children:
+        web:
+          hosts:
+            srv1:
+              ansible_host: 100.a.b.c
+            srv2:
+              ansible_host: 100.a.b.c

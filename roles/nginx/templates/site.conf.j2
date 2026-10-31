@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+server {
+    listen 80{{ ' default_server' if item.default_server | default(false) else '' }};
+    listen [::]:80{{ ' default_server' if item.default_server | default(false) else '' }};
+    server_name {{ item.server_name }};
+
+    root {{ item.root }};
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}

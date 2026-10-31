@@ -1,0 +1,9 @@
+---
+ssh_port: 22
+lan_subnet: 192.168.0.0/24
+timezone: Etc/UTC
+
+tailscale_authkey: "{{ vault_tailscale_authkey }}"
+
+ssh_hardening_key_users:
+  - "{{ ansible_user }}"

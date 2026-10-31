@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+AuthenticationMethods publickey
+MaxAuthTries {{ ssh_hardening_max_auth_tries }}
+MaxSessions 4
+LoginGraceTime 30
+ClientAliveInterval 300
+ClientAliveCountMax 2
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding {{ 'yes' if ssh_hardening_allow_tcp_forwarding else 'no' }}
+TCPKeepAlive no
+LogLevel VERBOSE
+Banner /etc/issue.net
+{% if ssh_hardening_allow_users | length > 0 %}
+AllowUsers {{ ssh_hardening_allow_users | join(' ') }}
+{% endif %}

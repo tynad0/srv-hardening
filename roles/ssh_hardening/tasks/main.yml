@@ -1,0 +1,47 @@
+---
+- name: Check authorized_keys of required users
+  ansible.builtin.stat:
+    path: "~{{ item }}/.ssh/authorized_keys"
+  loop: "{{ ssh_hardening_key_users }}"
+  register: ssh_hardening_keys
+
+- name: Refuse to disable passwords without keys
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.size > 0
+    fail_msg: "У {{ item.item }} no authorized_keys: no access if passs' are not enabled."
+    quiet: true
+  loop: "{{ ssh_hardening_keys.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Deploy login banner
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: "Authorized access only. All activity may be monitored and logged.\n"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - /etc/issue
+    - /etc/issue.net
+
+- name: Ensure privilege separation directory exists
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  changed_when: false
+
+- name: Deploy sshd hardening config
+  ansible.builtin.template:
+    src: 00-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload sshd

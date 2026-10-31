@@ -1,0 +1,6 @@
+---
+# if tailscale updates are not published yet on 26.04, put "noble"
+tailscale_apt_codename: "{{ ansible_facts['distribution_release'] }}"
+tailscale_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
+tailscale_hostname: "{{ inventory_hostname }}"
+tailscale_extra_args: []

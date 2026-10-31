@@ -1,0 +1,11 @@
+---
+- name: Test full sshd config
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  listen: Reload sshd
+
+- name: Reload ssh service
+  ansible.builtin.systemd_service:
+    name: ssh
+    state: reloaded
+  listen: Reload sshd

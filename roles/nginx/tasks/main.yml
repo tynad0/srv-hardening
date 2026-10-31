@@ -1,0 +1,81 @@
+---
+- name: Install nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+
+- name: Disable server_tokens in nginx.conf
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*#?\s*server_tokens\s'
+    line: "\tserver_tokens off;"
+    insertafter: '^\s*http\s*\{'
+  notify: Reload nginx
+
+- name: Deploy nginx hardening config
+  ansible.builtin.template:
+    src: 00-hardening.conf.j2
+    dest: /etc/nginx/conf.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Remove default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  when: nginx_remove_default_site | bool
+  notify: Reload nginx
+
+- name: Create site roots
+  ansible.builtin.file:
+    path: "{{ item.root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ nginx_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy placeholder index
+  ansible.builtin.copy:
+    dest: "{{ item.root }}/index.html"
+    content: "<h1>{{ inventory_hostname }} ok</h1>\n"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  loop: "{{ nginx_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy site configs
+  ansible.builtin.template:
+    src: site.conf.j2
+    dest: "/etc/nginx/sites-available/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ nginx_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload nginx
+
+- name: Enable sites
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ item.name }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item.name }}.conf"
+    state: link
+  loop: "{{ nginx_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload nginx
+
+- name: Ensure nginx is running
+  ansible.builtin.systemd_service:
+    name: nginx
+    state: started
+    enabled: true
+  ignore_errors: "{{ ansible_check_mode }}"
