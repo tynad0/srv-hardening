@@ -1,4 +1,3 @@
----
 - name: Install nginx
   ansible.builtin.apt:
     name: nginx
@@ -50,6 +49,18 @@
   loop: "{{ nginx_sites }}"
   loop_control:
     label: "{{ item.name }}"
+
+- name: Generate and setup Tailscale SSL certificate
+  ansible.builtin.shell: |
+    DOMAIN=$(tailscale status --json | jq -r .Self.DNSName)
+    if [ ! -f /etc/ssl/certs/tailscale.crt ]; then
+      tailscale cert "$DOMAIN"
+      cp "$DOMAIN"..crt /etc/ssl/certs/tailscale.crt
+      cp "$DOMAIN"..key /etc/ssl/private/tailscale.key
+      chmod 600 /etc/ssl/private/tailscale.key
+    fi
+  args:
+    executable: /bin/bash
 
 - name: Deploy site configs
   ansible.builtin.template:

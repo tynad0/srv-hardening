@@ -3,6 +3,16 @@ server {
     listen 80{{ ' default_server' if item.default_server | default(false) else '' }};
     listen [::]:80{{ ' default_server' if item.default_server | default(false) else '' }};
     server_name {{ item.server_name }};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl{{ ' default_server' if item.default_server | default(false) else '' }};
+    listen [::]:443 ssl{{ ' default_server' if item.default_server | default(false) else '' }};
+    server_name {{ item.server_name }};
+
+    ssl_certificate /etc/ssl/certs/tailscale.crt;
+    ssl_certificate_key /etc/ssl/private/tailscale.key;
 
     root {{ item.root }};
     index index.html;

@@ -56,3 +56,15 @@
   when: tailscale_backend_state != 'Running'
   changed_when: true
   no_log: true
+
+- name: Generate Tailscale HTTPS certificate
+  ansible.builtin.shell: |
+    DOMAIN=$(tailscale status --json | jq -r .Self.DNSName | sed 's/\.$//')
+    if [ ! -f /etc/ssl/certs/tailscale.crt ]; then
+      tailscale cert "$DOMAIN"
+      cp "$DOMAIN.crt" /etc/ssl/certs/tailscale.crt
+      cp "$DOMAIN.key" /etc/ssl/private/tailscale.key
+      chmod 600 /etc/ssl/private/tailscale.key
+    fi
+  args:
+    executable: /bin/bash
